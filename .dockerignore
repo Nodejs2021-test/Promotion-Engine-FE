@@ -1,0 +1,10 @@
+# The image installs its own node_modules and builds dist itself.
+node_modules/
+dist/
+# Local .env (e.g. VITE_API_URL=http://localhost:8000) must not be baked into the build; Render passes VITE_API_URL.
+.env
+.env.*
+*.local
+*.tsbuildinfo
+Dockerfile
+.dockerignore
