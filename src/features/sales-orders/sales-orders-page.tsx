@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { PlusIcon, Settings2Icon } from 'lucide-react';
+import { PlusIcon, Settings2Icon, XIcon } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DataTable } from '@/components/shared/data-table';
 import { SearchInput, Toolbar } from '@/components/shared/misc';
 import { PageHeader } from '@/components/shared/page-header';
@@ -55,12 +55,18 @@ export default function SalesOrdersPage() {
   const [channel, setChannel] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  // Opened from a campaign's order count: only the orders that campaign priced.
+  const [params, setParams] = useSearchParams();
+  const campaignId = params.get('campaign') || undefined;
+  const campaignName = params.get('campaignName') || campaignId;
   const reset = <T,>(set: (v: T) => void) => (v: T) => { set(v); setPage(1); };
 
   const list = useQuery({
-    queryKey: ['sales-orders', q, status, channel, page, pageSize],
+    queryKey: ['sales-orders', q, status, channel, campaignId, page, pageSize],
     queryFn: async () =>
-      (await api.get<SalesOrderList>('/sales-orders', { params: { q: q || undefined, status, channel, page, page_size: pageSize } })).data,
+      (await api.get<SalesOrderList>('/sales-orders', {
+        params: { q: q || undefined, status, channel, campaign_id: campaignId, page, page_size: pageSize },
+      })).data,
     placeholderData: keepPreviousData,
   });
   const opts = (values?: string[]) => (values || []).map((v) => ({ value: v, label: v }));
@@ -83,6 +89,14 @@ export default function SalesOrdersPage() {
         <SearchInput placeholder="Search sales order or customer id" onSearch={reset(setQ)} />
         <SimpleSelect className="w-44" options={opts(list.data?.statuses)} value={status} onChange={reset(setStatus)} clearLabel="All Status" placeholder="Status" />
         <SimpleSelect className="w-48" options={opts(list.data?.channels)} value={channel} onChange={reset(setChannel)} clearLabel="All channels" placeholder="Channel" />
+        {campaignId && (
+          <span className="inline-flex h-9 items-center gap-1 rounded-full border bg-muted/50 pl-3 pr-1 text-sm">
+            Priced by campaign <b className="font-medium">{campaignName}</b>
+            {list.data && <span className="text-muted-foreground">· {list.data.total} {list.data.total === 1 ? 'order' : 'orders'}</span>}
+            <Button variant="ghost" size="icon" className="size-7 rounded-full" aria-label="Clear campaign filter"
+              onClick={() => { setParams({}, { replace: true }); setPage(1); }}><XIcon /></Button>
+          </span>
+        )}
       </Toolbar>
       <DataTable<SalesOrderSummary>
         rows={list.data?.items}

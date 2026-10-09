@@ -88,6 +88,10 @@ export interface Campaign {
   enabled: boolean;
   priority: number;
   rule_count: number;
+  /** Rules of this campaign that priced at least one line of a non-cancelled sales order. */
+  applied_rule_count?: number;
+  /** Non-cancelled sales orders with at least one line priced by this campaign. */
+  applied_order_count?: number;
   submitted_by?: string | null;
   submitted_at?: string | null;
   approved_by?: string | null;
