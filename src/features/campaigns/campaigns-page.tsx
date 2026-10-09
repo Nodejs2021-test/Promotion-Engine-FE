@@ -30,24 +30,18 @@ function move<T>(list: T[], from: number, to: number): T[] {
   return next;
 }
 
-/** A labelled count in a campaign row; the label is visible so the number reads without a column header. */
-function Stat({ value, label, title, tone, to }: { value: number; label: string; title: string; tone?: 'applied'; to?: string }) {
-  const active = tone === 'applied' && value > 0;
-  const number = 'text-base font-semibold leading-5 tabular-nums';
-  return (
-    <div title={title} className="flex w-16 flex-col-reverse items-center rounded-md px-1 py-0.5">
-      <dt className="text-xs leading-4 text-[#5b6170] dark:text-muted-foreground">{label}</dt>
-      <dd>
-        {to ? (
-          <Link to={to} aria-label={title}
-            className={cn(number, 'block rounded px-2 text-[#2f55d4] underline underline-offset-2 hover:text-[#1d3fae] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:text-[#93abff]')}>
-            {value}
-          </Link>
-        ) : (
-          <span className={cn(number, 'text-[#1f2330] dark:text-foreground', active && 'text-[#1e7a4f] dark:text-[#5fd39a]')}>{value}</span>
-        )}
-      </dd>
-    </div>
+/** One plain number: the sales orders this campaign priced (each order once); the tooltip has the rule counts. */
+function OrderCount({ c }: { c: Campaign }) {
+  const orders = c.applied_order_count ?? 0;
+  const title = `${plural(orders, 'sales order')} priced by this campaign · ${c.applied_rule_count ?? 0} of ${plural(c.rule_count, 'rule')} applied`;
+  const cls = 'hidden w-16 shrink-0 text-center text-xs tabular-nums text-[#3d4250] sm:block dark:text-muted-foreground';
+  return orders ? (
+    <Link to={`/sales-orders?campaign=${encodeURIComponent(c.campaign_id)}&campaignName=${encodeURIComponent(c.name)}`}
+      title={`${title}: open the list`} aria-label={`${title}: open the list`} className={cn(cls, 'rounded hover:text-[#2f55d4] hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none')}>
+      {orders}
+    </Link>
+  ) : (
+    <span title={title} className={cls}>{orders}<span className="sr-only"> sales orders</span></span>
   );
 }
 
@@ -72,15 +66,13 @@ function CampaignRow({ c, index, count, canOrder, onMove, onToggle, dragProps }:
           {c.name}
         </Link>
       </div>
-      <dl className="hidden shrink-0 items-center gap-1 sm:flex">
-        <Stat value={c.rule_count} label="rules" title={`${plural(c.rule_count, 'rule')} created in this campaign`} />
-        <Stat value={c.applied_rule_count ?? 0} label="applied" tone="applied"
-          title={`${c.applied_rule_count ?? 0} of ${plural(c.rule_count, 'rule')} priced at least one sales order line`} />
-        <Stat value={c.applied_order_count ?? 0} label="orders"
-          title={`${plural(c.applied_order_count ?? 0, 'sales order')} with a line priced by this campaign${c.applied_order_count ? ': open the list' : ''}`}
-          to={c.applied_order_count ? `/sales-orders?campaign=${encodeURIComponent(c.campaign_id)}&campaignName=${encodeURIComponent(c.name)}` : undefined} />
-      </dl>
-      <span className="hidden w-80 shrink-0 text-[15px] tabular-nums text-[#1f2330] md:block dark:text-foreground">{fmtDate(c.start_date)} - {fmtDate(c.end_date)}</span>
+      <OrderCount c={c} />
+      <span className="hidden w-80 shrink-0 text-[15px] tabular-nums text-[#1f2330] md:block dark:text-foreground">
+        {/* Dates are shown for Monthly Promotion campaigns only (a Monthly Promotion rule, or the name); the rest show a dash. */}
+        {c.families?.includes('MONTHLY_PROMO') || /monthly\s*promo/i.test(c.name)
+          ? <>{fmtDate(c.start_date)} - {fmtDate(c.end_date)}</>
+          : <span aria-label="No dates shown" className="text-[#5b6170] dark:text-muted-foreground">—</span>}
+      </span>
       <Button asChild variant="ghost" size="icon" className="size-8 rounded-md bg-[#e9eaf0] text-[#2b2f3a] hover:bg-[#dcdee8] dark:bg-muted dark:text-foreground">
         <Link to={`/campaigns/${c.campaign_id}`} aria-label={`Open ${c.name}`} title="Open campaign"><ScanEyeIcon /></Link>
       </Button>

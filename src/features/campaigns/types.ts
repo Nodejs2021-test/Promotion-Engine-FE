@@ -92,6 +92,8 @@ export interface Campaign {
   applied_rule_count?: number;
   /** Non-cancelled sales orders with at least one line priced by this campaign. */
   applied_order_count?: number;
+  /** Distinct rule families in the campaign (campaign list only). */
+  families?: string[];
   submitted_by?: string | null;
   submitted_at?: string | null;
   approved_by?: string | null;
