@@ -10,7 +10,7 @@ import { api } from '@/lib/api-client';
 import { todayIso } from '@/lib/format';
 import type { CheckOrderRow } from './types';
 
-/** The rules of the active campaigns in the order the engine checks them: the first rule that matches a line wins. */
+/** The rules of the active campaigns in the order the engine checks them (Best Price: the lowest matching price wins). */
 export function CheckOrder() {
   const [on, setOn] = useState<string | undefined>(todayIso());
   const q = useQuery({
@@ -24,10 +24,10 @@ export function CheckOrder() {
         <AlertTitle>How a sales order line is priced</AlertTitle>
         <AlertDescription>
           <p>
-            Campaigns are checked strictly in priority order: Campaign 1, then 2, then 3 … For each rule: campaign date → customer →
-            product → quantity. The <b>first rule that matches</b> gives the price and nothing after it is checked, so a lower-priority
-            campaign is only tried when the campaigns above it don&apos;t match, and discounts never stack. No match → the original price is
-            kept. Inside a campaign: the more specific rule, then the higher quantity threshold, then rule priority.
+            Every rule below is checked: campaign date → customer → product → quantity. With <b>Best Price</b> every rule that fully
+            matches offers a price and the <b>lowest price wins</b>, whatever its position (the order only decides a tie). An{' '}
+            <b>Exclusive</b> rule is used as soon as it matches, in this order, and wins outright. Discounts never stack; no match → the
+            original price is kept.
           </p>
         </AlertDescription>
       </Alert>

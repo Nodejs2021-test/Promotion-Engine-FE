@@ -15,6 +15,10 @@ import { PricingStatusBadge } from './order-pricing';
 
 export interface SalesOrderSummary {
   sales_order_id: string;
+  cancelled?: boolean;
+  cancelled_at?: string | null;
+  submission_count?: number;
+  latest_pricing_request_id?: string | null;
   source: string;
   status?: string | null;
   customer_id: string;

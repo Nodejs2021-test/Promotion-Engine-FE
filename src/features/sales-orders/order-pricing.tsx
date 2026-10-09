@@ -96,6 +96,7 @@ export interface PricingResult {
 export function PricingStatusBadge({ status }: { status?: string | null }) {
   if (!status) return <ToneBadge>not priced</ToneBadge>;
   if (status === 'ERROR') return <ToneBadge tone="red">pricing error</ToneBadge>;
+  if (status === 'CANCELLED') return <ToneBadge tone="red">cancelled</ToneBadge>;
   return status === 'PROMOTION_APPLIED' ? <ToneBadge tone="green">promotion applied</ToneBadge> : <ToneBadge>no promotion</ToneBadge>;
 }
 
@@ -153,7 +154,7 @@ export function WhyThisPrice({ item }: { item: PricedItem }) {
             {e.rulesNotChecked > 0 && (
               <li className="flex items-start gap-1.5 text-muted-foreground">
                 <MinusCircleIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
-                {e.rulesNotChecked} later rule(s) not checked: the first matching rule wins.
+                {e.rulesNotChecked} later rule(s) not checked: an Exclusive rule matched first.
               </li>
             )}
           </ol>

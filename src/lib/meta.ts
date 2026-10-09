@@ -25,6 +25,8 @@ export interface Meta {
   quantity_bases: Option[];
   item_roles: Option[];
   programmes: Option[];
+  eligibility_scopes: Option[];
+  eligibility_modes: Option[];
   boolean_fields: string[];
   controlled_values: { channel: string[]; banner: string[]; marketing_flag: string[] };
 }

@@ -48,6 +48,9 @@ interface Draft {
   permitted_family: string;
   source_reference: string;
   notes: string;
+  currency: string;
+  max_total: string;
+  max_customer: string;
 }
 
 const NUMBER_OPS = new Set(['gte', 'lte']);
@@ -92,6 +95,9 @@ function fromRule(r?: Rule | null): Draft {
     permitted_family: r?.bonus ? s(r.bonus.permitted_family) : 'BASE',
     source_reference: s(r?.source_reference),
     notes: s(r?.notes),
+    currency: s(r?.currency),
+    max_total: s(r?.max_uses_total),
+    max_customer: s(r?.max_uses_per_customer),
   };
 }
 
@@ -206,6 +212,9 @@ export function RuleBuilder({ campaignId, rule, open, onOpenChange, onSaved }: {
         bonus: isBonus ? { buy_quantity: Number(d.buy), bonus_quantity: Number(d.bonus_qty), repeatable: d.repeatable, permitted_family: d.permitted_family || null } : null,
         source_reference: d.source_reference.trim() || null,
         notes: d.notes.trim() || null,
+        currency: isPriceList ? d.currency.trim().toUpperCase() || null : null,
+        max_uses_total: d.family === 'PROMOTION_CODE' ? num(d.max_total) : null,
+        max_uses_per_customer: d.family === 'PROMOTION_CODE' ? num(d.max_customer) : null,
       };
       const url = rule ? `/campaigns/${campaignId}/rules/${rule.rule_id}` : `/campaigns/${campaignId}/rules`;
       return (await (rule ? api.put<CampaignDetail>(url, body) : api.post<CampaignDetail>(url, body))).data;
@@ -266,8 +275,21 @@ export function RuleBuilder({ campaignId, rule, open, onOpenChange, onSaved }: {
                 </Field>
               )}
               {d.family === 'PROMOTION_CODE' && (
-                <Field id="rule-code" label="Promotion code">
-                  <Input id="rule-code" value={d.promotion_code} onChange={(e) => set({ promotion_code: e.target.value })} placeholder="SPRING26" className="uppercase" />
+                <>
+                  <Field id="rule-code" label="Promotion code">
+                    <Input id="rule-code" value={d.promotion_code} onChange={(e) => set({ promotion_code: e.target.value })} placeholder="SPRING26" className="uppercase" />
+                  </Field>
+                  <Field id="rule-max-total" label="Max uses in total (optional)" hint="Orders the code may be applied to; cancelled orders do not count.">
+                    <Input id="rule-max-total" inputMode="numeric" value={d.max_total} onChange={(e) => set({ max_total: e.target.value })} placeholder="100" />
+                  </Field>
+                  <Field id="rule-max-cust" label="Max uses per customer (optional)">
+                    <Input id="rule-max-cust" inputMode="numeric" value={d.max_customer} onChange={(e) => set({ max_customer: e.target.value })} placeholder="1" />
+                  </Field>
+                </>
+              )}
+              {isPriceList && (
+                <Field id="rule-currency" label="Currency" hint="Orders in another currency get PRICE_LIST_CURRENCY_MISMATCH.">
+                  <Input id="rule-currency" value={d.currency} maxLength={3} onChange={(e) => set({ currency: e.target.value })} placeholder="AUD" className="w-28 uppercase" />
                 </Field>
               )}
               <Field id="rule-source" label="Source reference (optional)" hint="MPS plan, contract or approval reference.">
@@ -312,7 +334,7 @@ export function RuleBuilder({ campaignId, rule, open, onOpenChange, onSaved }: {
           <Section title={`Selected items (${d.items.filter((i) => i.include).length} included)`}>
             <p className="text-xs text-muted-foreground">
               Matched on Item Internal ID (else Item Code). Leave empty to cover every item the conditions allow.
-              {isPriceList && ' Enter each item’s fixed rate.'}
+              {isPriceList ? ' Enter each item’s fixed rate.' : ' Role "Rate override" + Rate gives that item its own fixed price in this rule; Cap / Bonus / Exception item roles belong to Cap / Bonus / Exception rules.'}
             </p>
             {d.items.length > 0 && (
               <div className="space-y-2">

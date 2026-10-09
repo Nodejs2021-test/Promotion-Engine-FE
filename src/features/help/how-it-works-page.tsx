@@ -1,80 +1,117 @@
-import { ArrowDownIcon, ArrowRightIcon, CircleCheckIcon, CircleXIcon } from 'lucide-react';
+import {
+  ArrowRightIcon, BadgePercentIcon, BanIcon, BookOpenIcon, CalculatorIcon, CalendarIcon, CheckIcon, ChevronRightIcon,
+  CircleCheckIcon, CircleHelpIcon, CircleXIcon, CrownIcon, FileTextIcon, GiftIcon, HistoryIcon, LayersIcon, type LucideIcon,
+  MegaphoneIcon, PackageIcon, PlugIcon, ReceiptIcon, RocketIcon, ScaleIcon, ShieldIcon, SlidersHorizontalIcon, TagIcon,
+  TrophyIcon, UsersIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
 import { ToneBadge } from '@/components/shared/status';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
-/* Informational only: how the system and its rules work (Promotion Engine specifications v2.0). */
+/*
+ * Informational only. Describes what the pricing engine actually does (backend/src/app/modules/pricing) and the
+ * Promotion Engine specifications v2.0. Every number in the examples was checked against the engine.
+ */
 
-const SECTIONS = [
-  { id: 'system', title: '1. Complete system flow' },
-  { id: 'campaigns', title: '2. Campaign / promotion flow' },
-  { id: 'rules', title: '3. Rules flow' },
-  { id: 'evaluation', title: '4. Rule evaluation flow' },
-  { id: 'price', title: '5. Price calculation' },
-  { id: 'example', title: '6. Complete real-world example' },
-  { id: 'no-match', title: '7. No match scenario' },
-];
+const TABS = [
+  { value: 'overview', label: 'Overview', icon: RocketIcon },
+  { value: 'setup', label: 'Campaigns & rules', icon: MegaphoneIcon },
+  { value: 'pricing', label: 'How prices are worked out', icon: CalculatorIcon },
+  { value: 'examples', label: 'Examples', icon: ReceiptIcon },
+  { value: 'reference', label: 'Reference', icon: BookOpenIcon },
+  { value: 'faq', label: 'FAQ', icon: CircleHelpIcon },
+] as const;
 
-function Section({ id, title, intro, children }: { id: string; title: string; intro?: ReactNode; children: ReactNode }) {
+// ---------------------------------------------------------------------------------------------------- building blocks
+function IconBadge({ icon: Icon, tone = 'primary' }: { icon: LucideIcon; tone?: 'primary' | 'success' | 'muted' | 'danger' }) {
+  const tones = {
+    primary: 'bg-primary/10 text-primary',
+    success: 'bg-success/10 text-success',
+    muted: 'bg-muted text-muted-foreground',
+    danger: 'bg-destructive/10 text-destructive',
+  };
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-20">
-      <Card>
-        <CardContent className="space-y-4 p-5 sm:p-6">
-          <h2 id={`${id}-title`} className="text-xl font-semibold tracking-tight">{title}</h2>
-          {intro && <p className="max-w-3xl text-muted-foreground">{intro}</p>}
-          {children}
-        </CardContent>
-      </Card>
+    <span aria-hidden className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', tones[tone])}>
+      <Icon className="size-5" />
+    </span>
+  );
+}
+
+function Block({ title, intro, children }: { title: string; intro?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+        {intro && <p className="mt-0.5 max-w-3xl text-sm text-muted-foreground">{intro}</p>}
+      </div>
+      {children}
     </section>
   );
 }
 
-function H3({ children }: { children: ReactNode }) {
-  return <h3 className="pt-2 text-base font-semibold">{children}</h3>;
-}
-
-function Steps({ items }: { items: ReactNode[] }) {
+/** Horizontal numbered steps (wrap on small screens). */
+function Stepper({ steps }: { steps: { icon: LucideIcon; title: string; text: string }[] }) {
   return (
-    <ol className="max-w-3xl space-y-2">
-      {items.map((item, i) => (
-        <li key={i} className="flex gap-3">
-          <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary tabular-nums">{i + 1}</span>
-          <span className="pt-0.5">{item}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-/** A left-to-right chain of steps that wraps on small screens. */
-function Flow({ steps, label }: { steps: string[]; label: string }) {
-  return (
-    <ol aria-label={label} className="flex flex-wrap items-center gap-2">
+    <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {steps.map((s, i) => (
-        <li key={s} className="flex items-center gap-2">
-          <span className="rounded-lg border bg-muted/50 px-3 py-1.5 text-sm font-medium">{s}</span>
-          {i < steps.length - 1 && <ArrowRightIcon aria-hidden className="size-4 text-muted-foreground" />}
+        <li key={s.title} className="relative rounded-xl border bg-card p-4">
+          <div className="flex items-center gap-3">
+            <IconBadge icon={s.icon} />
+            <span className="text-xs font-semibold text-muted-foreground tabular-nums">STEP {i + 1}</span>
+          </div>
+          <h3 className="mt-3 font-semibold">{s.title}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{s.text}</p>
         </li>
       ))}
     </ol>
   );
 }
 
-function Table({ head, rows, caption }: { head: string[]; rows: ReactNode[][]; caption?: string }) {
+/** Vertical timeline. */
+function Timeline({ items }: { items: { title: string; text: ReactNode }[] }) {
+  return (
+    <ol className="relative space-y-4 border-l-2 border-primary/20 pl-6">
+      {items.map((it, i) => (
+        <li key={it.title} className="relative">
+          <span aria-hidden className="absolute -left-[2.15rem] flex size-7 items-center justify-center rounded-full border-2 border-primary/30 bg-background text-xs font-semibold text-primary tabular-nums">{i + 1}</span>
+          <h3 className="font-semibold">{it.title}</h3>
+          <div className="mt-0.5 max-w-3xl text-sm text-muted-foreground">{it.text}</div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Accordion({ title, icon, children, defaultOpen }: { title: string; icon?: LucideIcon; children: ReactNode; defaultOpen?: boolean }) {
+  const Icon = icon;
+  return (
+    <details open={defaultOpen} className="group rounded-xl border bg-card">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-2.5 font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        {Icon && <Icon aria-hidden className="size-4 shrink-0 text-primary" />}
+        <span className="flex-1">{title}</span>
+        <ChevronRightIcon aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+      </summary>
+      <div className="space-y-3 border-t px-4 py-3 text-sm">{children}</div>
+    </details>
+  );
+}
+
+function Table({ head, rows, caption }: { head: string[]; rows: ReactNode[][]; caption: string }) {
   return (
     <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full min-w-[36rem] text-left text-sm">
-        {caption && <caption className="sr-only">{caption}</caption>}
+      <table className="w-full min-w-[34rem] text-left text-sm">
+        <caption className="sr-only">{caption}</caption>
         <thead className="bg-muted/60">
           <tr>{head.map((h) => <th key={h} scope="col" className="px-3 py-2 font-semibold">{h}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className="border-t align-top">
-              {r.map((c, k) => <td key={k} className="px-3 py-2">{c}</td>)}
-            </tr>
+            <tr key={i} className="border-t align-top">{r.map((c, k) => <td key={k} className="px-3 py-2">{c}</td>)}</tr>
           ))}
         </tbody>
       </table>
@@ -82,237 +119,453 @@ function Table({ head, rows, caption }: { head: string[]; rows: ReactNode[][]; c
   );
 }
 
-function Yes({ children }: { children: ReactNode }) {
-  return <span className="inline-flex items-start gap-1.5"><CircleCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-success" /><span>{children}<span className="sr-only"> (passed)</span></span></span>;
-}
-
-function No({ children }: { children: ReactNode }) {
-  return <span className="inline-flex items-start gap-1.5"><CircleXIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" /><span>{children}<span className="sr-only"> (failed)</span></span></span>;
-}
-
-function Note({ children }: { children: ReactNode }) {
-  return <p className="max-w-3xl rounded-lg border-l-4 border-primary/50 bg-primary/5 px-4 py-3 text-sm">{children}</p>;
-}
-
-export default function HowItWorksPage() {
+function Calc({ title, formula, example, result }: { title: string; formula: string; example: string; result: string }) {
   return (
-    <>
-      <PageHeader
-        title="How It Works"
-        description="A plain-language guide to the system: what each menu does, how campaigns and rules are set up, and how every sales order line gets its price."
-      />
-      <div className="grid gap-6 lg:grid-cols-[14rem_1fr] lg:items-start">
-        <nav aria-label="On this page" className="lg:sticky lg:top-20">
-          <Card>
-            <CardContent className="p-4">
-              <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">On this page</p>
-              <ul className="space-y-1 text-sm">
-                {SECTIONS.map((s) => (
-                  <li key={s.id}><a href={`#${s.id}`} className="block rounded px-2 py-1.5 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">{s.title}</a></li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </nav>
-
-        <div className="min-w-0 space-y-6">
-          {/* ------------------------------------------------------------------ 1 */}
-          <Section id="system" title="1. Complete system flow"
-            intro="Promotions are set up once in Campaigns. Every sales order that arrives is then priced automatically against the approved campaigns, and the result is shown in Sales Orders.">
-            <H3>What each menu is for</H3>
-            <Table caption="Sidebar menus" head={['Menu', 'What you do there', 'Who uses it']} rows={[
-              [<Link to="/campaigns" className="font-medium text-primary hover:underline">Campaigns</Link>, 'Create campaigns, add their rules, submit them for approval, approve them and set their priority. "Check order today" shows the order in which rules are checked.', 'Campaign managers and approvers'],
-              [<Link to="/sales-orders" className="font-medium text-primary hover:underline">Sales Orders</Link>, 'See every order received from NetSuite with its price per line and why. "Add new sales order" lets you paste a NetSuite order to preview its price. "Price again" re-prices an order with today\'s rules.', 'Sales order users'],
-              [<Link to="/audit" className="font-medium text-primary hover:underline">Audit / History</Link>, 'See who changed what and when: campaigns, rules (each change creates a new rule version), users and settings.', 'Everyone'],
-              [<span className="font-medium">Administration</span>, 'Users and roles, the API key NetSuite uses, and Settings: organisation, currency, timezone, logo and the allowed Channel / Banner / Marketing Flag values.', 'Administrators'],
-              [<span className="font-medium">How It Works</span>, 'This guide.', 'Everyone'],
-            ]} />
-            <H3>The order you work in</H3>
-            <Steps items={[
-              <><b>Administration:</b> add users and roles, create the API key NetSuite sends, optionally list the allowed Channels, Banners and Marketing Flags.</>,
-              <><b>Campaigns:</b> create a campaign, add its rules, submit it; an approver approves it.</>,
-              <><b>NetSuite</b> sends sales orders automatically (or paste one in <b>Sales Orders → Add new sales order</b>).</>,
-              <><b>The pricing engine</b> checks every order line against the approved campaigns and works out the final price.</>,
-              <><b>Sales Orders</b> shows each line's price, the rule that gave it and why; the price is also returned to NetSuite.</>,
-              <><b>Audit / History</b> keeps a record of every change.</>,
-            ]} />
-            <H3>How the data flows</H3>
-            <Flow label="Data flow" steps={['Administration (users, API key, allowed values)', 'Campaigns + Rules (approved)', 'NetSuite sales order', 'Pricing engine', 'Price per line', 'Sales Orders + NetSuite']} />
-          </Section>
-
-          {/* ------------------------------------------------------------------ 2 */}
-          <Section id="campaigns" title="2. Campaign / promotion flow"
-            intro="A campaign is a container for rules: it has a name, dates, an optional audience and a priority, and it must be approved before any of its rules are used.">
-            <Steps items={[
-              <>Open <b>Campaigns → New campaign</b>. Enter the <b>name</b>, a short <b>code</b> and a <b>description</b>.</>,
-              <>Set the <b>start and end dates</b>. The campaign only prices orders whose order date falls between them (both days included).</>,
-              <>Optionally limit who and what it covers: <b>customers, customer groups, channels, SKUs, item groups</b>. These limits apply to every rule in the campaign. Leave them empty for "everyone / every item".</>,
-              <>Save. The campaign is a <ToneBadge>Draft</ToneBadge> and is now ready for rules (section 3).</>,
-              <>Click <b>Submit</b> → <ToneBadge tone="amber">Pending approval</ToneBadge>. An approver clicks <b>Approve</b> → <ToneBadge tone="green">Approved</ToneBadge>, or <b>Reject</b> with a comment (back to Draft).</>,
-              <>Between its dates an approved campaign is <ToneBadge tone="green">Active</ToneBadge>; after the end date it is <b>Expired</b>. <b>Disable</b> switches it off at any time.</>,
-              <>Drag campaigns on the Campaigns list to set their <b>priority</b> (1 = strongest). Priority decides between equally specific rules of the same kind.</>,
-            ]} />
-            <Note>Changing an approved campaign or any of its rules sends it back to <b>Draft</b>, so only what an approver approved is ever used to price orders.</Note>
-            <H3>How an active campaign is used</H3>
-            <p className="max-w-3xl">When a sales order arrives, only campaigns that are <b>Approved, enabled and within their dates</b> on the order date are loaded. All their active rules take part in pricing; draft, pending, disabled and expired campaigns are ignored.</p>
-          </Section>
-
-          {/* ------------------------------------------------------------------ 3 */}
-          <Section id="rules" title="3. Rules flow"
-            intro="A rule says: WHEN these conditions are true for an order line, THEN the line may get this price. Rules always belong to a campaign.">
-            <H3>Creating a rule</H3>
-            <Steps items={[
-              <>Open the campaign and click <b>Add rule</b> (the rule is linked to that campaign automatically).</>,
-              <>Give it a <b>name</b> and choose its <b>family</b> (what kind of rule it is, table below).</>,
-              <>Add <b>conditions</b> (who and what qualifies), the <b>selected items</b>, the <b>quantity basis</b> and the <b>outcome</b> (quantity tiers or a single discount).</>,
-              <>Optionally set the rule's own <b>valid from / to</b> dates. Save: the rule gets <b>version 1</b>; every later change adds 1.</>,
-            ]} />
-            <H3>Rule families</H3>
-            <Table caption="Rule families" head={['Family', 'Used for']} rows={[
-              ['Everyday', 'Ongoing deals, e.g. Accelerate, LiveLife carton pricing, Make the Switch.'],
-              ['Monthly Promotion', 'Temporary monthly deals. Must name an audience (customer, banner, channel…) and its items.'],
-              ['Promotion Code', 'Only applies when the order carries the matching promotion code.'],
-              ['Exception', 'Approved customer-specific exceptions.'],
-              ['Price List', 'Fixed item rates for a customer. Exclusive: such a customer gets only these rates.'],
-              ['Cap', 'A maximum discount % for some items (e.g. Sea Buckthorn 25%). It limits, never creates, a discount.'],
-              ['Bonus', 'Free stock of the same item, e.g. buy 10 get 1.'],
-            ]} />
-            <H3>Conditions you can set and how they are checked</H3>
-            <Table caption="Conditions" head={['Condition', 'Examples', 'How it is checked']} rows={[
-              ['Customer', 'Customer, Customer Group', 'The order\'s customer must equal / be one of the values.'],
-              ['Banner / Marketing Flag / Channel', 'TerryWhite, LiveLife, Pharmacy', 'Compared with the values on the order (upper / lower case ignored).'],
-              ['Programme', 'Accelerate, MTS, Monthly Promotion', 'The customer must be eligible (Yes on the order). Eligible only means "may take part": the rule must still match.'],
-              ['Item / product', 'Item ID, SKU, Product, Item Group, Category, Accelerate Flag', 'The line\'s item must be one of the rule\'s selected items (and not excluded) and meet the item conditions.'],
-              ['Date', 'Campaign dates, rule dates', 'The order date must be inside both.'],
-              ['Quantity', 'Line quantity, mixed pool, whole order, shipper (carton)', 'The counted quantity must reach a tier; the highest tier reached applies.'],
-              ['Discount', '35 %, fixed rate 12.500', 'Taken from the tier (or the single discount) and applied to the item\'s Wholesale Price.'],
-            ]} />
-            <Note>Several conditions on <b>different</b> fields must <b>all</b> be true (customer AND item AND quantity). Several entries for the <b>same</b> field mean "any of these" (Product = A or Product = B).</Note>
-            <H3>How several rules work together</H3>
-            <ul className="max-w-3xl list-disc space-y-1 pl-5">
-              <li>Rules of the <b>same family</b> are checked one by one; the first one that fully matches is that family's offer.</li>
-              <li>Every <b>family</b> makes its own offer, and the base price is always an offer too.</li>
-              <li>The <b>lowest price</b> of all offers wins (a rule marked <b>Exclusive</b> wins outright). Discounts are <b>never added together</b>.</li>
-            </ul>
-          </Section>
-
-          {/* ------------------------------------------------------------------ 4 */}
-          <Section id="evaluation" title="4. Rule evaluation flow" intro="This happens automatically for every line of every sales order received.">
-            <Flow label="Evaluation sequence" steps={['Sales order received', 'Customer check', 'Campaign check', 'Rule check', 'Item / product check', 'Date check', 'Quantity check', 'Discount calculation', 'Final price']} />
-            <H3>Step by step</H3>
-            <Steps items={[
-              <><b>Order checks:</b> the order must be valid (no item twice on chargeable lines, allowed Channel / Banner values). Free-stock and excluded lines are skipped; an approved manual price is kept.</>,
-              <><b>Base price:</b> the customer's normal price is worked out first (e.g. Wholesale minus the customer's base discount). It is always one of the offers.</>,
-              <><b>Families, one after another:</b> Everyday → Monthly Promotion → Promotion Code (only if the order has a code) → Exception.</>,
-              <><b>Inside a family, which rule first?</b> The most specific: rules for one <b>Customer</b>, then <b>Banner</b>, then <b>Marketing Flag</b> or group, then <b>Channel</b>, then general rules. Equal ones: campaign priority, then rule priority.</>,
-              <><b>Each rule is checked in this order:</b> date → promotion code → programme eligibility → customer / audience → item → other conditions → quantity and tier.</>,
-              <><b>Rule does not match</b> (any check fails): the reason is recorded (e.g. "Quantity 2 does not reach a tier") and the <b>next rule of the same family</b> is checked.</>,
-              <><b>Rule matches:</b> its price becomes that family's offer and the remaining rules of <b>that family</b> are not checked. Evaluation <b>continues with the next family</b>.</>,
-              <><b>Compare:</b> caps are applied, then the <b>lowest</b> offer wins (an Exclusive rule wins outright). The winning price is rounded to 3 decimals.</>,
-              <><b>No rule matches at all:</b> the base price is used (section 7).</>,
-            ]} />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Note><Yes><b>Match</b> → becomes the offer of its family → stop that family → go to the next family.</Yes></Note>
-              <Note><No><b>No match</b> → try the next rule in the family → if none left, the family makes no offer.</No></Note>
-            </div>
-          </Section>
-
-          {/* ------------------------------------------------------------------ 5 */}
-          <Section id="price" title="5. Price calculation" intro="Example: a rule gives 35 % off. The item's Wholesale (original) price is 20.00 and 6 are ordered.">
-            <Table caption="Price calculation example" head={['Item', 'Formula', 'Value']} rows={[
-              ['Original price (per unit)', 'Wholesale Price of the item', '20.00'],
-              ['Quantity', 'Ordered quantity', '6'],
-              ['Discount', 'From the matching rule / tier', '35 %'],
-              ['Discount price (per unit)', 'Original price × (1 − 35 %)', '13.00'],
-              ['Discount amount per unit', 'Original price − Discount price', '7.00'],
-              ['Total original price', 'Original price × Quantity', '120.00'],
-              ['Total discount price', 'Discount price × Quantity', '78.00'],
-              ['You save', 'Total original − Total discount price', '42.00'],
-              [<b key="f">Final price</b>, 'The lowest valid offer per unit, rounded to 3 decimals', <b key="v">13.000 per unit · 78.000 for the line</b>],
-            ]} />
-            <ul className="max-w-3xl list-disc space-y-1 pl-5 text-sm">
-              <li>The final price is compared with every other offer (the customer's base price, other families) before it is used.</li>
-              <li>If a <b>cap</b> applies (e.g. maximum 25 %), a bigger discount is reduced to the cap.</li>
-              <li><b>Bonus stock</b> (e.g. 2 free units) is listed separately; it never changes the price.</li>
-            </ul>
-          </Section>
-
-          {/* ------------------------------------------------------------------ 6 */}
-          <Section id="example" title="6. Complete real-world example"
-            intro="Customer CUST1001 orders on 8 October 2026. Channel Pharmacy, Banner TerryWhite, Accelerate eligible, Monthly Promotion eligible, normal (base) discount 20 % off Wholesale.">
-            <H3>Campaigns and rules</H3>
-            <Table caption="Example campaigns" head={['Campaign (priority, dates)', 'Rule', 'Conditions', 'Outcome']} rows={[
-              ['Accelerate (1) · 1 Jan – 31 Dec 2026', 'R1 Accelerate Pharmacy (Everyday)', 'Channel = Pharmacy · Accelerate item · Accelerate eligible', '6+ → 35 % · 12+ → 45 %'],
-              ['Accelerate (1)', 'R2 Accelerate TerryWhite (Everyday)', 'Banner = TerryWhite · Accelerate item · Accelerate eligible', '3+ → 35 %'],
-              ['October Monthly (2) · 1 – 31 Oct 2026', 'R3 Mixed deal (Monthly Promotion)', 'Channel is Pharmacy or Health Food · items Vitamin C + Zinc share one pool', 'pool 10+ → 30 %'],
-              ['September Monthly (3) · 1 – 30 Sep 2026', 'R4 Zinc deal (Monthly Promotion)', 'Channel = Pharmacy · item Zinc', '50 %'],
-              ['Controls (4) · 1 Jan – 31 Dec 2026', 'R5 Sea Buckthorn cap (Cap)', 'item Sea Buckthorn', 'maximum 25 %'],
-              ['Controls (4)', 'R6 Fish Oil bonus (Bonus)', 'item Fish Oil', 'buy 10 get 1 free, only with the base price'],
-            ]} />
-            <H3>Order lines and base price (Wholesale − 20 %)</H3>
-            <Table caption="Order lines" head={['Line', 'Item', 'Qty', 'Wholesale', 'Accelerate item', 'Base price']} rows={[
-              ['1', 'Vitamin C', '6', '20.00', 'Yes', '16.00'],
-              ['2', 'Zinc', '5', '10.00', 'No', '8.00'],
-              ['3', 'Sea Buckthorn', '3', '40.00', 'Yes', '32.00'],
-              ['4', 'Fish Oil', '24', '15.00', 'No', '12.00'],
-              ['5', 'Vitamin C (free stock)', '1', '—', '—', 'skipped'],
-            ]} />
-            <H3>Line by line</H3>
-            <div className="space-y-4">
-              <ExampleLine title="Line 1 · Vitamin C × 6" checks={[
-                <Yes key="a">Everyday: R2 is checked first (Banner is more specific than Channel). Date, Accelerate eligible, Banner TerryWhite, Accelerate item, quantity 6 reaches 3+ → 35 % → <b>13.00</b>. R1 is not checked.</Yes>,
-                <Yes key="b">Monthly: R3. Pool = Vitamin C 6 + Zinc 5 = 11 (free line not counted) reaches 10+ → 30 % → <b>14.00</b>.</Yes>,
-                <No key="c">Monthly: R4 is skipped because R3 already matched; it would also fail its date (ended 30 Sep).</No>,
-              ]} result="Offers: base 16.00 · Everyday 13.00 · Monthly 14.00 → lowest = 13.000 (R2). Line total 78.000." />
-              <ExampleLine title="Line 2 · Zinc × 5" checks={[
-                <No key="a">Everyday: R2 and then R1 fail because Zinc is not an Accelerate item.</No>,
-                <Yes key="b">Monthly: R3 matches; the pool quantity is 11 → 30 % → <b>7.00</b>. (5 alone would not have been enough: the mixed pool makes it qualify.)</Yes>,
-              ]} result="Offers: base 8.00 · Monthly 7.00 → 7.000 (R3). Line total 35.000." />
-              <ExampleLine title="Line 3 · Sea Buckthorn × 3" checks={[
-                <Yes key="a">Everyday: R2 matches → 35 % → 26.00, but the cap R5 allows at most 25 % → <b>30.00</b>.</Yes>,
-                <No key="b">Monthly: Sea Buckthorn is not one of R3's items; R4 is out of date.</No>,
-              ]} result="Offers: base 32.00 · Everyday (capped) 30.00 → 30.000. Line total 90.000." />
-              <ExampleLine title="Line 4 · Fish Oil × 24" checks={[
-                <No key="a">Everyday: not an Accelerate item. Monthly: not in R3; R4 out of date.</No>,
-                <Yes key="b">Bonus R6: the price came from the base price, so 24 ÷ 10 = 2 free Fish Oil.</Yes>,
-              ]} result="No rule matched → base price 12.000. Line total 288.000, plus 2 free units (0.000)." />
-              <ExampleLine title="Line 5 · Vitamin C free stock" checks={[<No key="a">Free-stock lines are skipped and do not count in any quantity.</No>]} result="Bypassed." />
-            </div>
-            <Table caption="Example result" head={['Line', 'Final unit price', 'Why', 'Line total']} rows={[
-              ['Vitamin C × 6', '13.000', 'Everyday R2, tier 1', '78.000'],
-              ['Zinc × 5', '7.000', 'Monthly Promotion R3', '35.000'],
-              ['Sea Buckthorn × 3', '30.000', 'Everyday R2, capped at 25 %', '90.000'],
-              ['Fish Oil × 24', '12.000', 'Base price + 2 bonus units', '288.000'],
-              [<b key="t">Order</b>, '', 'Wholesale total 650.00', <b key="v">491.000</b>],
-            ]} />
-          </Section>
-
-          {/* ------------------------------------------------------------------ 7 */}
-          <Section id="no-match" title="7. No match scenario">
-            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-              <span className="rounded-lg border bg-muted/50 px-3 py-1.5 text-sm font-medium">No campaign or rule matches</span>
-              <ArrowRightIcon aria-hidden className="hidden size-4 text-muted-foreground sm:block" />
-              <ArrowDownIcon aria-hidden className="size-4 text-muted-foreground sm:hidden" />
-              <span className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-1.5 text-sm font-semibold">Use the original / base price</span>
-            </div>
-            <ul className="max-w-3xl list-disc space-y-1 pl-5">
-              <li>The line keeps the customer's <b>base price</b>: Wholesale minus the customer's base discount (or Wholesale / RRP, depending on the customer). If NetSuite does not send the customer's price level, the <b>price already on the order</b> is used.</li>
-              <li>The reason is shown: <i>"No eligible promotion found"</i>, and <b>Pricing &amp; why</b> lists every rule that was checked and the check that failed.</li>
-              <li>The order is never rejected just because nothing matched.</li>
-            </ul>
-          </Section>
-        </div>
+    <div className="flex flex-col rounded-xl border bg-card p-4">
+      <div className="text-sm font-semibold">{title}</div>
+      <div className="mt-2 rounded-lg bg-muted/60 px-3 py-2 font-mono text-xs">{formula}</div>
+      <div className="mt-3 flex items-end justify-between gap-2 text-sm">
+        <span className="text-muted-foreground">{example}</span>
+        <span className="font-mono text-base font-semibold text-primary tabular-nums">{result}</span>
       </div>
-    </>
+    </div>
   );
 }
 
-function ExampleLine({ title, checks, result }: { title: string; checks: ReactNode[]; result: string }) {
+function Callout({ icon: Icon, title, children, tone = 'primary' }: { icon: LucideIcon; title: string; children: ReactNode; tone?: 'primary' | 'success' | 'danger' }) {
+  const tones = { primary: 'border-primary/30 bg-primary/5', success: 'border-success/30 bg-success/5', danger: 'border-destructive/30 bg-destructive/5' };
   return (
-    <div className="rounded-lg border p-4">
-      <h4 className="font-semibold">{title}</h4>
-      <ul className="mt-2 space-y-1.5 text-sm">{checks.map((c, i) => <li key={i}>{c}</li>)}</ul>
-      <p className="mt-2 text-sm font-medium"><ArrowRightIcon aria-hidden className="mr-1 inline size-4 text-primary" />{result}</p>
+    <div className={cn('flex gap-3 rounded-xl border p-4', tones[tone])}>
+      <IconBadge icon={Icon} tone={tone === 'danger' ? 'danger' : tone} />
+      <div className="text-sm"><div className="font-semibold">{title}</div><div className="mt-0.5 text-muted-foreground">{children}</div></div>
     </div>
+  );
+}
+
+const Yes = ({ children }: { children: ReactNode }) => (
+  <span className="inline-flex items-start gap-1.5"><CircleCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-success" /><span>{children}<span className="sr-only"> (passed)</span></span></span>
+);
+const No = ({ children }: { children: ReactNode }) => (
+  <span className="inline-flex items-start gap-1.5"><CircleXIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" /><span>{children}<span className="sr-only"> (failed)</span></span></span>
+);
+
+/** Bars for the $80 / $70 / $75 comparison; the winner is marked with text, not colour alone. */
+function PriceBars({ offers, title, note }: { offers: { name: string; price: number; win?: boolean; skipped?: boolean }[]; title: string; note: string }) {
+  const max = Math.max(...offers.map((o) => o.price));
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <h3 className="font-semibold">{title}</h3>
+      <ul className="mt-3 space-y-2">
+        {offers.map((o) => (
+          <li key={o.name} className="grid grid-cols-[6.5rem_1fr_4.5rem] items-center gap-2 text-sm">
+            <span className={cn(o.skipped && 'text-muted-foreground line-through')}>{o.name}</span>
+            <span className="h-3 overflow-hidden rounded-full bg-muted">
+              <span className={cn('block h-full rounded-full', o.win ? 'bg-success' : o.skipped ? 'bg-muted-foreground/30' : 'bg-primary/40')} style={{ width: `${(o.price / max) * 100}%` }} />
+            </span>
+            <span className="text-right font-mono tabular-nums">${o.price}{o.win && <TrophyIcon aria-label="winner" className="ml-1 inline size-3.5 text-success" />}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-sm text-muted-foreground">{note}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------------- page
+export default function HowItWorksPage() {
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.some((t) => t.value === params.get('tab')) ? params.get('tab')! : 'overview';
+
+  return (
+    <>
+      <PageHeader title="How It Works" description="A friendly guide to the Promotion Engine: set up campaigns and rules once, and every sales order line is priced automatically." />
+
+      <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>
+        <TabsList variant="line" className="mb-5 w-full justify-start overflow-x-auto">
+          {TABS.map((t) => (
+            <TabsTrigger key={t.value} value={t.value}><t.icon aria-hidden /> {t.label}</TabsTrigger>
+          ))}
+        </TabsList>
+
+        {/* ============================================================== OVERVIEW */}
+        <TabsContent value="overview" className="space-y-8">
+          <Card className="overflow-hidden">
+            <CardContent className="grid gap-6 p-6 md:grid-cols-[1.2fr_1fr] md:items-center">
+              <div>
+                <h2 className="text-2xl font-semibold tracking-tight">Prices that follow your promotions, automatically</h2>
+                <p className="mt-2 text-muted-foreground">
+                  You describe each promotion once, as a campaign with rules. When NetSuite sends a sales order, every line is checked
+                  against all active rules and gets the <b className="text-foreground">best valid price</b>, with a plain explanation of why.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button asChild><Link to="/campaigns">Open Campaigns <ArrowRightIcon /></Link></Button>
+                  <Button asChild variant="outline"><Link to="/sales-orders">Open Sales Orders</Link></Button>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Callout icon={TrophyIcon} title="Best price wins" tone="success">Every matching campaign offers a price; the lowest one is used.</Callout>
+                <Callout icon={CrownIcon} title="Exclusive overrides">A rule set to Exclusive is used even if something else is cheaper.</Callout>
+                <Callout icon={ScaleIcon} title="No match = normal price">If nothing matches, the customer's base price is kept.</Callout>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Block title="The flow in 4 steps">
+            <Stepper steps={[
+              { icon: SlidersHorizontalIcon, title: 'Set up', text: 'Administration: users, roles, the NetSuite API key, programme eligibility and allowed values.' },
+              { icon: MegaphoneIcon, title: 'Create campaigns & rules', text: 'Campaigns: dates, who and which items qualify, the discount. Submit, then an approver approves.' },
+              { icon: PlugIcon, title: 'Orders arrive', text: 'NetSuite sends each sales order (or paste one in Sales Orders to preview it).' },
+              { icon: ReceiptIcon, title: 'Priced & explained', text: 'Each line gets its best price, the winning rule and the reasons. The result goes back to NetSuite.' },
+            ]} />
+          </Block>
+
+          <Block title="What each menu is for">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                { icon: MegaphoneIcon, name: 'Campaigns', to: '/campaigns', text: 'Campaigns and their rules, approval, priority, and "Check order today".' },
+                { icon: PlugIcon, name: 'Sales Orders', to: '/sales-orders', text: 'Every order with its prices and why, pricing history, Price again, Mark cancelled, field mapping.' },
+                { icon: HistoryIcon, name: 'Audit / History', to: '/audit', text: 'Who changed what and when; each rule change is a new version.' },
+                { icon: ShieldIcon, name: 'Administration', to: '/admin', text: 'Users, roles, programme eligibility, API keys and settings.' },
+              ].map((m) => (
+                <Link key={m.name} to={m.to} className="group rounded-xl border bg-card p-4 transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+                  <IconBadge icon={m.icon} />
+                  <div className="mt-3 flex items-center gap-1 font-semibold">{m.name}<ArrowRightIcon aria-hidden className="size-4 opacity-0 transition-opacity group-hover:opacity-100" /></div>
+                  <p className="mt-1 text-sm text-muted-foreground">{m.text}</p>
+                </Link>
+              ))}
+            </div>
+          </Block>
+        </TabsContent>
+
+        {/* ============================================================== CAMPAIGNS & RULES */}
+        <TabsContent value="setup" className="space-y-8">
+          <Block title="A campaign's life" intro="Only Active campaigns price orders. Editing an approved campaign or its rules sends it back to Draft, so only approved content is ever used.">
+            <ol aria-label="Campaign statuses" className="flex flex-wrap items-center gap-2">
+              {[
+                ['Draft', 'neutral', 'being prepared'],
+                ['Pending Approval', 'amber', 'submitted'],
+                ['Approved', 'blue', 'starts later'],
+                ['Active', 'green', 'prices orders'],
+              ].map(([label, tone, hint], i, arr) => (
+                <li key={label} className="flex items-center gap-2">
+                  <span className="rounded-xl border bg-card px-3 py-2 text-center">
+                    <ToneBadge tone={tone}>{label}</ToneBadge>
+                    <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>
+                  </span>
+                  {i < arr.length - 1 && <ArrowRightIcon aria-hidden className="size-4 text-muted-foreground" />}
+                </li>
+              ))}
+            </ol>
+            <p className="text-sm text-muted-foreground">Also: <b>Expired</b> (after the end date) and <b>Disabled</b> (switched off). Reject returns a campaign to Draft with the approver's comment.</p>
+          </Block>
+
+          <Block title="Create a rule in 6 steps" intro="Campaigns → open a campaign → Add rule. The form only shows the sections the chosen family needs.">
+            <Timeline items={[
+              { title: 'Name and family', text: 'Pick what kind of rule it is: Everyday Deal, Monthly Promotion, Promotion Code, Customer Exception, Customer Price List, Item Discount Cap or Bonus Stock.' },
+              { title: 'Comparison and item cap', text: 'Best Price (normal: the cheapest offer wins) or Exclusive (this rule wins outright). Apply item cap, or an approved bypass.' },
+              { title: 'Who qualifies (When)', text: 'Conditions such as Customer, Banner, Marketing Flag, Channel, programme eligibility. All different fields must match.' },
+              { title: 'Which items', text: 'Select items by Item Internal ID (include / exclude), or use item conditions such as Item Group or SKU.' },
+              { title: 'Quantity and outcome (Then)', text: 'Choose the quantity basis and either quantity tiers (e.g. 6+ → 35 %, 12+ → 45 %) or a single discount.' },
+              { title: 'Save, submit, approve', text: 'The rule is saved as version 1 (each later save adds one). Submit the campaign; an approver approves it.' },
+            ]} />
+          </Block>
+
+          <Block title="Every field explained" intro="Open a field to see its options and an example.">
+            <div className="grid gap-2 lg:grid-cols-2">
+              <Accordion title="Family — what kind of rule" icon={LayersIcon}>
+                <Table caption="Family options" head={['Option', 'Use it for']} rows={[
+                  ['Everyday Deal', 'Ongoing deals: Accelerate, LiveLife cartons, Make the Switch.'],
+                  ['Monthly Promotion', 'Monthly deals. Needs an audience condition and selected items; the customer must be Monthly-Promotion eligible.'],
+                  ['Promotion Code', 'Only when the order carries the code. Optional limits: max uses in total / per customer.'],
+                  ['Customer Exception', 'Approved customer-specific exceptions.'],
+                  ['Customer Price List', 'Fixed item rates (with a currency). Always Exclusive; used for Price List customers only.'],
+                  ['Item Discount Cap', 'Maximum discount % for the selected items. Never creates a price.'],
+                  ['Bonus Stock', 'Free units of the same item: buy X get Y.'],
+                ]} />
+              </Accordion>
+              <Accordion title="Comparison — Best Price or Exclusive" icon={ScaleIcon}>
+                <p><b>Best Price</b> (default): every matching rule offers a price; the lowest wins, whatever its priority. <b>Exclusive</b>: if it matches, it wins outright even when dearer. See the "How prices are worked out" tab.</p>
+              </Accordion>
+              <Accordion title="Item cap — apply or bypass" icon={BadgePercentIcon}>
+                <p><b>Apply item cap</b>: a % above the item's cap is reduced to the cap (40 % with a 25 % cap → 25 %). <b>Approved cap bypass</b>: this rule may exceed the cap. Fixed prices are not capped.</p>
+              </Accordion>
+              <Accordion title="Programme eligibility" icon={UsersIcon}>
+                <p>None, Accelerate, Make the Switch or Monthly Promotion. The customer must be eligible; the rule must still match. Decided by the first that applies:</p>
+                <ol className="list-decimal space-y-0.5 pl-5">
+                  <li>Administration → Programme eligibility record for the <b>Customer</b></li>
+                  <li>… for the <b>Customer Group</b>, then <b>Banner</b>, then <b>Channel</b></li>
+                  <li>The eligibility flag sent with the order</li>
+                  <li>Records exist but none applies → not eligible; nothing at all → error PRICING_CONTEXT_INCOMPLETE</li>
+                </ol>
+              </Accordion>
+              <Accordion title="Promotion code, currency, source reference, notes" icon={TagIcon}>
+                <p><b>Promotion code</b>: matched with the order's code (case ignored). <b>Max uses</b> (optional): in total / per customer; cancelled orders and re-pricing the same order do not count.</p>
+                <p><b>Currency</b> (Price List): an order in another currency gets PRICE_LIST_CURRENCY_MISMATCH.</p>
+                <p><b>Source reference</b> and <b>Notes</b> are for people only; they never change a price.</p>
+              </Accordion>
+              <Accordion title="Selected items and item roles" icon={PackageIcon}>
+                <p>Items are matched by <b>Item Internal ID</b> (else Item Code). <b>Include</b> = covered, <b>Exclude</b> = never this item, none = every item the conditions allow. <b>Mixed pool</b> groups items whose quantities add up.</p>
+                <p><b>Roles</b>: Standard (normal) · <b>Rate override</b> + Rate = this item's own fixed price in the rule · Cap / Bonus / Exception item only in those rule families. <b>Rate</b> is also each item's price in a Price List.</p>
+              </Accordion>
+              <Accordion title="Quantity basis" icon={CalculatorIcon}>
+                <Table caption="Quantity bases" head={['Option', 'Counts']} rows={[
+                  ['Line quantity', 'This line only (qty 6 → tier 6+).'],
+                  ['Mixed pool quantity', 'All lines in the pool: A 5 + B 5 = 10.'],
+                  ['Order qualifying quantity', 'All lines the rule covers.'],
+                  ['Shipper quantity', 'Qty ≥ item shipper qty × multiple (12 × 1: 13 yes, 11 no).'],
+                  ['Any quantity', 'At least one unit.'],
+                ]} />
+              </Accordion>
+              <Accordion title="Then — tiers or single discount" icon={BadgePercentIcon}>
+                <p><b>Tiers</b>: minimum (included), optional maximum (not included), a Discount % or a Fixed unit rate; the highest tier reached applies. <b>Item rate overrides</b> give one item another % in one tier.</p>
+                <p><b>Single discount</b>: Percentage, Fixed discount (amount off), Promotional price, Fixed unit price.</p>
+              </Accordion>
+              <Accordion title="Cap and bonus settings" icon={GiftIcon}>
+                <p><b>Maximum discount %</b> (Cap rules). <b>Bonus</b>: buy quantity, bonus quantity, repeat for every multiple, and "only when the price comes from" (Any / Base pricing / a family).</p>
+              </Accordion>
+              <Accordion title="Valid from / to, rule type, version" icon={CalendarIcon}>
+                <p>Optional rule dates on top of the campaign dates (blank Valid to = open-ended). Rule type is set automatically. Version goes up on every save and is shown on each priced line.</p>
+              </Accordion>
+            </div>
+          </Block>
+        </TabsContent>
+
+        {/* ============================================================== PRICING */}
+        <TabsContent value="pricing" className="space-y-8">
+          <Block title="What happens to each order line" intro="The engine does this for every chargeable line, in this order.">
+            <Timeline items={[
+              { title: 'Order checks', text: 'Allowed values, no item twice on chargeable lines, order Pending Fulfilment / Ready to Send (when sent). A failure stops the whole order.' },
+              { title: 'Special lines', text: 'Free stock and excluded lines are skipped. An approved manual price is kept. Price List customers get their list rate and stop here.' },
+              { title: 'Base price', text: <>The customer's normal price (e.g. Wholesale − 20 %). <b>It is always one of the offers.</b></> },
+              { title: 'Check every active rule', text: 'Date → promotion code and limits → programme eligibility → customer → items → conditions → quantity tier. A failed check ends that rule; the next rule is tried.' },
+              { title: 'Collect the offers', text: 'Best Price: every matching rule adds an offer and checking continues. Exclusive: the first match wins its family outright.' },
+              { title: 'Apply caps', text: 'Percentage offers above the item cap are reduced (unless the rule has an approved bypass).' },
+              { title: 'Pick the winner', text: 'An Exclusive match if any, otherwise the lowest offer. Equal prices: more specific rule, then campaign priority.' },
+              { title: 'Round, bonus, store', text: 'Rounded half-up to 3 decimals; free bonus units added; saved with a new entry in the order\'s pricing history.' },
+            ]} />
+          </Block>
+
+          <Block title="Best Price vs Exclusive" intro="One order line, base price $100. Campaign 1 offers $80, Campaign 2 $70, Campaign 3 $75.">
+            <div className="grid gap-3 lg:grid-cols-2">
+              <PriceBars title="All Best Price → $70" note="All three are checked and compared with the base price; the lowest wins, whatever the priority."
+                offers={[{ name: 'Base price', price: 100 }, { name: 'Campaign 1', price: 80 }, { name: 'Campaign 2', price: 70, win: true }, { name: 'Campaign 3', price: 75 }]} />
+              <PriceBars title="Campaign 1 Exclusive → $80" note="An Exclusive rule that matches is used even though $70 and $75 are cheaper."
+                offers={[{ name: 'Base price', price: 100, skipped: true }, { name: 'Campaign 1', price: 80, win: true }, { name: 'Campaign 2', price: 70, skipped: true }, { name: 'Campaign 3', price: 75, skipped: true }]} />
+            </div>
+            <div className="grid gap-2 md:grid-cols-3">
+              <Callout icon={ScaleIcon} title="Dearer than base?">A Best Price offer of $120 never wins: the base $100 is kept.</Callout>
+              <Callout icon={TrophyIcon} title="A tie?">Two $70 offers: the more specific rule, then the higher campaign priority.</Callout>
+              <Callout icon={CrownIcon} title="When to use Exclusive">Only when a specific agreement must win, e.g. a customer contract.</Callout>
+            </div>
+          </Block>
+
+          <Block title="The formulas" intro="Calculated at full precision; only the winning price is rounded (half-up, 3 decimals).">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Calc title="Percentage discount" formula="price × (1 − % ÷ 100)" example="20.00 at 35 %" result="13.000" />
+              <Calc title="Base price (percentage customer)" formula="wholesale × (1 − base %)" example="20.00 at 20 %" result="16.000" />
+              <Calc title="Fixed discount" formula="price − amount (not below 0)" example="20.00 − 2.50" result="17.500" />
+              <Calc title="Fixed / promotional price" formula="the entered price" example="Promotional price 14.99" result="14.990" />
+              <Calc title="Cap" formula="if % > cap → use the cap" example="40 % on 100, cap 25 %" result="75.000" />
+              <Calc title="Bonus (repeat on)" formula="floor(qty ÷ buy) × bonus" example="qty 24, buy 10 get 1" result="2 free" />
+            </div>
+            <Table caption="From unit price to totals" head={['What', 'How', '6 units at 35 % off 20.00']} rows={[
+              ['Original price per unit', 'Price on the order (else base price)', '20.00'],
+              ['Discount price per unit', 'The winning price', '13.000'],
+              ['Discount per unit', 'Original − discount price', '7.000'],
+              ['Total original', 'Original × quantity', '120.00'],
+              [<b key="f">Final line total</b>, 'Discount price × quantity', <b key="v">78.000</b>],
+              ['Saving', 'Total original − final', '42.000'],
+            ]} />
+          </Block>
+
+          <Block title="Quantity tiers at a glance" intro="One rule with three tiers; reference price 20.00.">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                { qty: '1 – 5', pct: '20 %', price: '16.000', ex: 'qty 3 → 48.000' },
+                { qty: '6 – 11', pct: '35 %', price: '13.000', ex: 'qty 6 → 78.000' },
+                { qty: '12 +', pct: '45 %', price: '11.000', ex: 'qty 12 → 132.000' },
+              ].map((t, i) => (
+                <div key={t.qty} className="rounded-xl border bg-card p-4 text-center">
+                  <div className="text-xs font-semibold text-muted-foreground">TIER {i + 1} · QTY {t.qty}</div>
+                  <div className="mt-1 text-2xl font-semibold text-primary">{t.pct}</div>
+                  <div className="font-mono tabular-nums">{t.price} each</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{t.ex}</div>
+                </div>
+              ))}
+            </div>
+          </Block>
+        </TabsContent>
+
+        {/* ============================================================== EXAMPLES */}
+        <TabsContent value="examples" className="space-y-8">
+          <Block title="A complete order" intro="Customer CUST1001 · Pharmacy · TerryWhite · base 20 % off Wholesale · Accelerate and Monthly-Promotion eligible · 8 Oct 2026.">
+            <div className="mx-auto max-w-3xl rounded-xl border bg-card shadow-sm">
+              <div className="flex items-center justify-between border-b px-5 py-3">
+                <span className="flex items-center gap-2 font-semibold"><ReceiptIcon aria-hidden className="size-4 text-primary" /> Sales order SO-HELP</span>
+                <ToneBadge tone="green">priced</ToneBadge>
+              </div>
+              <ul className="divide-y">
+                {[
+                  { item: 'Vitamin C × 6', why: 'TerryWhite Accelerate 35 % (tie with Pharmacy 35 %; mixed deal 14.00 and base 16.00 dearer)', rate: '13.000', total: '78.000' },
+                  { item: 'Zinc × 5', why: 'Monthly mixed deal: Vitamin C 6 + Zinc 5 = 11 ≥ 10 → 30 %', rate: '7.000', total: '35.000' },
+                  { item: 'Sea Buckthorn × 3', why: 'Accelerate 35 % capped at 25 %', rate: '30.000', total: '90.000' },
+                  { item: 'Fish Oil × 24', why: 'No rule matched → base price; + 2 free (buy 10 get 1)', rate: '12.000', total: '288.000' },
+                  { item: 'Vitamin C (free stock)', why: 'Skipped: free-stock line', rate: '—', total: '—' },
+                ].map((l) => (
+                  <li key={l.item} className="grid grid-cols-[1fr_auto] gap-x-4 px-5 py-3 sm:grid-cols-[1fr_5rem_6rem]">
+                    <div><div className="font-medium">{l.item}</div><div className="text-xs text-muted-foreground">{l.why}</div></div>
+                    <div className="hidden text-right font-mono tabular-nums sm:block">{l.rate}</div>
+                    <div className="text-right font-mono font-semibold tabular-nums">{l.total}</div>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex items-center justify-between border-t bg-muted/40 px-5 py-3">
+                <span className="text-sm text-muted-foreground">Wholesale total 650.00</span>
+                <span className="text-lg font-semibold tabular-nums">Total 491.000</span>
+              </div>
+            </div>
+          </Block>
+
+          <Block title="More examples">
+            <div className="grid gap-2 lg:grid-cols-2">
+              <Accordion title="Customer-specific rule" icon={UsersIcon}>
+                <p>Rule A: Customer = CUST1001 → 40 %. Rule B: everyone → 30 %. Both Best Price, price 20.00.</p>
+                <ul className="space-y-1">
+                  <li><Yes>CUST1001: 12.000 (A) beats 14.000 (B).</Yes></li>
+                  <li><No>Other customers: A does not match → 14.000 (B).</No></li>
+                  <li>If A gave only 25 % (15.000), B would win for CUST1001 too; make A <b>Exclusive</b> to force it.</li>
+                </ul>
+              </Accordion>
+              <Accordion title="Banner-specific rule (Accelerate)" icon={TagIcon}>
+                <p>R1 Pharmacy: Channel = Pharmacy, tiers 6 → 35 %, 12 → 45 %. R2 TerryWhite: Banner = TerryWhite, 3 → 35 %. Both need Accelerate eligibility and an Accelerate item.</p>
+                <ul className="space-y-1">
+                  <li><Yes>TerryWhite, qty 3: R2 → 35 %.</Yes></li>
+                  <li><No>Other pharmacy, qty 3: R1 needs 6 → base price.</No></li>
+                  <li><Yes>TerryWhite, qty 12: R1's 45 % beats R2's 35 % (Best Price).</Yes></li>
+                </ul>
+              </Accordion>
+              <Accordion title="Programme eligibility" icon={UsersIcon}>
+                <p>Channel Pharmacy record = eligible, Customer BLOCKED record = not eligible:</p>
+                <ul className="space-y-1">
+                  <li><Yes>Any pharmacy customer → the Accelerate rule can apply.</Yes></li>
+                  <li><No>Customer BLOCKED → not eligible (the customer record wins over the channel).</No></li>
+                </ul>
+              </Accordion>
+              <Accordion title="Mixed pool" icon={PackageIcon}>
+                <p>Vitamin C + Zinc in pool P1, 10+ → 30 %.</p>
+                <ul className="space-y-1">
+                  <li><Yes>Vitamin C 6 + Zinc 5 = 11 → both lines 30 %.</Yes></li>
+                  <li><No>Vitamin C 6 + Zinc 3 = 9 → neither.</No></li>
+                </ul>
+              </Accordion>
+              <Accordion title="Promotion code with a limit" icon={TagIcon}>
+                <p>Code SPRING, 50 %, max 1 use per customer.</p>
+                <ul className="space-y-1">
+                  <li><Yes>First order with SPRING → 50 %.</Yes></li>
+                  <li><No>Second order by the same customer → normal price.</No></li>
+                  <li>If the first order is cancelled, the use is freed.</li>
+                </ul>
+              </Accordion>
+              <Accordion title="Shipper (LiveLife carton)" icon={PackageIcon}>
+                <p>Banner LiveLife, shipper basis, multiple 1, 40 %. Item shipper 12:</p>
+                <ul className="space-y-1">
+                  <li><Yes>Qty 13 → 40 %.</Yes></li>
+                  <li><No>Qty 11 → normal price. No shipper quantity → INVALID_SHIPPER_QUANTITY.</No></li>
+                </ul>
+              </Accordion>
+            </div>
+          </Block>
+        </TabsContent>
+
+        {/* ============================================================== REFERENCE */}
+        <TabsContent value="reference" className="space-y-3">
+          <Accordion title="Conditions you can check" icon={SlidersHorizontalIcon} defaultOpen>
+            <p>Operators: = · ≠ · is one of · is not one of · ≥ · ≤ (Yes / No fields use =). Text ignores upper / lower case. Repeating the same text field means "any of these".</p>
+            <Table caption="Condition fields" head={['Group', 'Field', 'Notes']} rows={[
+              ['Customer', 'Customer, Customer Group, Banner, Marketing Flag', 'Text'],
+              ['Customer', 'Channel', 'Required when a rule uses it'],
+              ['Customer', 'Accelerate / Monthly Promotion / MTS Eligible', 'Yes / No'],
+              ['Product', 'Item Internal ID', 'Required when a rule uses it'],
+              ['Product', 'SKU, Product, Item Group, Item Flag, Category', 'Text'],
+              ['Product', 'Accelerate Flag, Commodity Flag', 'Yes / No'],
+              ['Product', 'Shipper Quantity', '≥'],
+              ['Order', 'Quantity', '≥ · ≤ (line quantity)'],
+              ['Order', 'Order Value', '≥ (quantity × price of chargeable lines)'],
+            ]} />
+          </Accordion>
+          <Accordion title="Customer price levels (base price)" icon={ScaleIcon}>
+            <Table caption="Price levels" head={['Price level', 'Base price']} rows={[
+              ['PERCENTAGE', 'Wholesale × (1 − base %)'],
+              ['WHOLESALE', 'Wholesale'],
+              ['RRP', 'RRP'],
+              ['PRICE_LIST', 'Price List rate only (exclusive)'],
+              ['BYPASS_100_PERCENT', 'Line not priced'],
+              ['(not sent)', 'The price already on the order (with a warning)'],
+            ]} />
+          </Accordion>
+          <Accordion title="Special lines, history and cancellation" icon={HistoryIcon}>
+            <Table caption="Lines and history" head={['Case', 'What happens']} rows={[
+              ['Free stock, notes, freight, tax… or Exclude pricing line', 'Skipped: no promotion, not counted in quantities'],
+              ['Manual override', 'The approved manual price is kept'],
+              ['Same item on two chargeable lines', 'Order rejected (DUPLICATE_CHARGEABLE_ITEM_CODE)'],
+              ['Every submission / Price again', 'New pricing history entry PR-<order>-01, -02 … (never overwritten)'],
+              ['Cancelled (NetSuite or "Mark cancelled")', 'Not priced again; history kept; promotion-code uses freed'],
+            ]} />
+          </Accordion>
+          <Accordion title="NetSuite field mapping" icon={PlugIcon}>
+            <p>Sales Orders → Field mapping lists every field the engine reads: price level, base %, eligibility flags, Marketing Flag, Category, Accelerate / Commodity flags, line type, exclude, manual override, order / pricing status. Enter the NetSuite path of each field NetSuite sends; fields without a path are simply not in the order.</p>
+          </Accordion>
+          <Accordion title="Messages: errors and warnings" icon={FileTextIcon}>
+            <Table caption="Messages" head={['Code', 'Meaning']} rows={[
+              ['PRICING_CONTEXT_INCOMPLETE', 'A required value is missing (e.g. channel, eligibility, item ID, base %)'],
+              ['INVALID_CONTROLLED_ATTRIBUTE', 'A value that is not allowed (channel, banner, marketing flag, price level, line type)'],
+              ['DUPLICATE_CHARGEABLE_ITEM_CODE', 'Same item on two chargeable lines'],
+              ['ORDER_NOT_ELIGIBLE_FOR_SUBMISSION', 'Not Pending Fulfilment / Ready to Send'],
+              ['WHOLESALE_PRICE_MISSING · RRP_MISSING', 'The price level needs a price the line does not have'],
+              ['INVALID_SHIPPER_QUANTITY', 'Shipper rule but no shipper quantity'],
+              ['PRICE_LIST_ASSIGNMENT_NOT_FOUND · PRICE_LIST_ITEM_NOT_FOUND · PRICE_LIST_CURRENCY_MISMATCH', 'Price List problems'],
+              ['LINE_EXCLUDED_FROM_PRICING · MANUAL_OVERRIDE_PRESERVED', 'Warnings'],
+              ['CAP_APPLIED · MONTHLY_PROMO_CAP_BYPASS', 'Information'],
+            ]} />
+          </Accordion>
+          <Accordion title="What is implemented" icon={CheckIcon}>
+            <ul className="grid gap-1.5 sm:grid-cols-2">
+              {[
+                'All rule families, tiers and quantity bases',
+                'Best Price across all campaigns, and Exclusive',
+                'Item caps and approved bypass',
+                'Bonus stock',
+                'Customer Price Lists with currency check',
+                'Item roles (rate override)',
+                'Programme eligibility records',
+                'Promotion code usage limits',
+                'Excluded lines and manual override',
+                'Validation and error codes',
+                'Rule versions on every result',
+                'Pricing history and cancellation',
+              ].map((t) => <li key={t}><Yes>{t}</Yes></li>)}
+            </ul>
+            <p className="text-muted-foreground">Best Price ignoring rule specificity (it only breaks ties) is a deliberate choice; use Exclusive to force a specific rule.</p>
+          </Accordion>
+        </TabsContent>
+
+        {/* ============================================================== FAQ */}
+        <TabsContent value="faq" className="space-y-2">
+          {[
+            { q: 'Why did my promotion not apply?', a: <>Open the order → <b>Pricing &amp; why</b>. Every rule that was checked is listed with the first check that failed (e.g. "Quantity 2 does not reach a tier", or a missing value). Also check that the campaign is <b>Active</b> on the order date.</> },
+            { q: 'Two campaigns match — which one wins?', a: <>With Best Price, the <b>lowest</b> price. With an Exclusive rule, that rule. Equal prices: the more specific rule, then the higher campaign priority.</> },
+            { q: 'How do I make sure a customer always gets their contract price?', a: <>Set that rule's Comparison to <b>Exclusive</b>, or use a <b>Customer Price List</b> for fixed item rates.</> },
+            { q: 'Do discounts add up?', a: <>No. Each rule offers a complete price and only one is used (20 % and 10 % never become 30 %).</> },
+            { q: 'What if no rule matches?', a: <>The line keeps the customer's base price, with the reason "No eligible promotion found". The order is never rejected for that.</> },
+            { q: 'I changed a rule — does it reprice old orders?', a: <>No. New orders use the new version. Use <b>Price again</b> on an order to reprice it; the old result stays in its pricing history.</> },
+            { q: 'Why did my campaign go back to Draft?', a: <>Editing an approved campaign or any of its rules needs approval again. Submit it and ask an approver.</> },
+            { q: 'How is a cancelled order handled?', a: <>NetSuite sends the cancellation (or use <b>Mark cancelled</b>). The order is not priced again, its history is kept and its promotion-code uses are freed.</> },
+          ].map((f) => (
+            <Accordion key={f.q} title={f.q} icon={CircleHelpIcon}><p>{f.a}</p></Accordion>
+          ))}
+          <div className="pt-2"><Callout icon={BanIcon} title="Still stuck?">The <b>Check order today</b> tab on Campaigns lists every active rule in the order it is checked.</Callout></div>
+        </TabsContent>
+      </Tabs>
+    </>
   );
 }

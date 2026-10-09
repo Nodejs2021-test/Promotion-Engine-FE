@@ -65,6 +65,9 @@ export interface Rule {
   bonus?: { buy_quantity: number; bonus_quantity: number; repeatable: boolean; permitted_family?: string | null } | null;
   source_reference?: string | null;
   notes?: string | null;
+  currency?: string | null;
+  max_uses_total?: number | null;
+  max_uses_per_customer?: number | null;
   /** Plain-language conditions, e.g. "Quantity >= 6". */
   when: string[];
   /** Plain-language action, e.g. "35% discount". */
