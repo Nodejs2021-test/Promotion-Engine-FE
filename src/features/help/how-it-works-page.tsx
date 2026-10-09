@@ -305,7 +305,7 @@ export default function HowItWorksPage() {
               </Accordion>
               <Accordion title="Selected items and item roles" icon={PackageIcon}>
                 <p>Items are matched by <b>Item Internal ID</b> (else Item Code). <b>Include</b> = covered, <b>Exclude</b> = never this item, none = every item the conditions allow. <b>Mixed pool</b> groups items whose quantities add up.</p>
-                <p><b>Roles</b>: Standard (normal) · <b>Rate override</b> + Rate = this item's own fixed price in the rule · Cap / Bonus / Exception item only in those rule families. <b>Rate</b> is also each item's price in a Price List.</p>
+                <p><b>Roles</b>: Standard (normal) · <b>Rate override</b> + Rate = this item's own fixed price in the rule · all item fields are optional (no checks). <b>Rate</b> is also each item's price in a Price List.</p>
               </Accordion>
               <Accordion title="Quantity basis" icon={CalculatorIcon}>
                 <Table caption="Quantity bases" head={['Option', 'Counts']} rows={[

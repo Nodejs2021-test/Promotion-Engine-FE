@@ -333,8 +333,8 @@ export function RuleBuilder({ campaignId, rule, open, onOpenChange, onSaved }: {
 
           <Section title={`Selected items (${d.items.filter((i) => i.include).length} included)`}>
             <p className="text-xs text-muted-foreground">
-              Matched on Item Internal ID (else Item Code). Leave empty to cover every item the conditions allow.
-              {isPriceList ? ' Enter each item’s fixed rate.' : ' Role "Rate override" + Rate gives that item its own fixed price in this rule; Cap / Bonus / Exception item roles belong to Cap / Bonus / Exception rules.'}
+              Optional. Matched on Item Internal ID (else Item Code). Leave empty to cover every item the conditions allow.
+              {isPriceList ? ' Enter each item’s fixed rate.' : ' Role "Rate override" + Rate gives that item its own fixed price in this rule.'}
             </p>
             {d.items.length > 0 && (
               <div className="space-y-2">
