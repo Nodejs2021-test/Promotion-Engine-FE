@@ -41,6 +41,8 @@ export interface PricedItem {
   campaignName?: string | null;
   ruleId?: string | null;
   ruleName?: string | null;
+  /** The coupon / promotion code that priced this line (Promotion Code rules only). */
+  promotionCode?: string | null;
   discountType?: string | null;
   discountValue?: number | null;
   discount: number;
@@ -164,8 +166,14 @@ export function WhyThisPrice({ item }: { item: PricedItem }) {
   );
 }
 
-/** Every line: quantity, original price, campaign / rule applied, discount and final price; expand a line for why. */
-export function PricingTable({ items }: { items: PricedItem[] }) {
+/** The coupon code that priced a line; results stored before the engine returned it fall back to the order's codes. */
+function lineCoupon(r: PricedItem, couponCodes?: string[]): string | null {
+  if (r.appliedPricingFamily !== 'PROMOTION_CODE') return null;
+  return r.promotionCode || couponCodes?.join(', ') || null;
+}
+
+/** Every line: quantity, original price, campaign / rule applied, coupon code, discount and final price; expand a line for why. */
+export function PricingTable({ items, couponCodes }: { items: PricedItem[]; couponCodes?: string[] }) {
   return (
     <DataTable<PricedItem>
       rows={items}
@@ -181,6 +189,13 @@ export function PricingTable({ items }: { items: PricedItem[] }) {
           cell: (r) => (r.promotionApplied
             ? <div><div className="font-medium">{r.ruleName}</div><div className="text-xs text-muted-foreground">{r.campaignName}</div></div>
             : <span className="text-muted-foreground">{r.reason}</span>),
+        },
+        {
+          key: 'cc', header: 'Coupon code',
+          cell: (r) => {
+            const code = lineCoupon(r, couponCodes);
+            return code ? <ToneBadge tone="violet">{code}</ToneBadge> : <span className="text-muted-foreground">—</span>;
+          },
         },
         { key: 'd', header: 'Discount', align: 'right', cell: (r) => (r.promotionApplied ? `${r.discount}%` : '—') },
         { key: 'fp', header: 'Final price', align: 'right', cell: (r) => <b>{fmtMoney(r.finalPrice)}</b> },

@@ -124,7 +124,7 @@ export default function SalesOrderDetailPage() {
         <TabsContent value="pricing">
           {so.pricing ? (
             <>
-              <PricingTable items={so.pricing.items} />
+              <PricingTable items={so.pricing.items} couponCodes={header?.couponCodes} />
               <p className="mt-2 text-xs text-muted-foreground">Open a line to see which rules were checked and why it got its price.</p>
             </>
           ) : (
